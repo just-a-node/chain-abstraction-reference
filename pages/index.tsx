@@ -214,7 +214,7 @@ const HomePage: NextPage = (pageProps) => {
             toAsset: originUSDC,
             amountIn: amountIn.toString(),
             to: POLYGON_ADAPTER_CONTRACT,
-            relayerFeeInNativeAsset: "", // 0.001 BNB
+            relayerFeeInNativeAsset: relayerFee,
             callData: xCallData,
           };
 
