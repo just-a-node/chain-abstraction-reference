@@ -1,12 +1,12 @@
 import { ethers } from 'ethers';
-import { Web3Provider } from '@ethersproject/providers';
+import { Provider } from '@ethersproject/providers';
 import ERC20ABI from '../abis/ERC20.json';
-// import GreeterABI from '../abis/Greeter.json';
+import GreeterABI from '../abis/Greeter.json';
 
 export default class ContractService {
-  provider: Web3Provider;
+  provider: Provider;
 
-  constructor(provider: Web3Provider) {
+  constructor(provider: Provider) {
     this.provider = provider;
   }
 
@@ -14,7 +14,7 @@ export default class ContractService {
     return new ethers.Contract(tokenAddress, ERC20ABI, this.provider);
   }
 
-  // async getGreeterContractInstance(contractAddress: string): Promise<ethers.Contract> {
-  //   return new ethers.Contract(contractAddress, GreeterABI, this.provider);
-  // }
+  async getGreeterContractInstance(contractAddress: string): Promise<ethers.Contract> {
+    return new ethers.Contract(contractAddress, GreeterABI, this.provider);
+  }
 }

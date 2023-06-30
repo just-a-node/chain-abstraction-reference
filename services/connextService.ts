@@ -1,26 +1,16 @@
 import { getPoolFeeForUniV3, getXCallCallData, prepareSwapAndXCall, getSupportedAssetsForDomain } from '@connext/chain-abstraction';
 import { DestinationCallDataParams, Swapper, SwapAndXCallParams } from '@connext/chain-abstraction/dist/types';
 import { SdkConfig, create } from '@connext/sdk';
-import { BigNumber, ethers } from 'ethers';
+import { BigNumber } from 'ethers';
 // import { NETWORKS, SUPPORTED_CHAINS_BY_CONNEXT } from '@constants';
 // import { ConnextTransferStatusResponse, Token } from '@types';
 // import { PROTOCOL_TOKEN_ADDRESS } from '@common/mocks/tokens';
 // import { find } from 'lodash';
-import WalletService from './walletService';
+import ContractService from './walletService';
+import WalletService from './contractService';
 
 interface DomainID {
   [key: number]: string;
-}
-
-interface ConnextServiceOptions {
-  signerAddress: string;
-  network: 'mainnet' | 'testnet';
-  chains: {
-    [domainId: string]: {
-      providers: string[];
-    };
-  };
-  walletService: WalletService;
 }
 
 export const DEPLOYED_ADDRESSES: Record<string, Record<string, string>> = {
@@ -37,16 +27,14 @@ export const DEPLOYED_ADDRESSES: Record<string, Record<string, string>> = {
 };
 
 export default class ConnextService {
+  contractService: ContractService;
   walletService: WalletService;
   sdkConfig: SdkConfig;
 
-  constructor(options: ConnextServiceOptions) {
-    this.sdkConfig = {
-      signerAddress: options.signerAddress,
-      network: options.network,
-      chains: options.chains,
-    };
-    this.walletService = options.walletService;
+  constructor(contractService: ContractService, walletService: WalletService, sdkConfig: SdkConfig) {
+    this.contractService = contractService;
+    this.walletService = walletService;
+    this.sdkConfig = sdkConfig;
   }
 
   // getRPCURL(chainID: number) {

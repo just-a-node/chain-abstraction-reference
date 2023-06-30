@@ -1,34 +1,71 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useEffect, useState } from 'react';
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import styles from '../styles/Home.module.css';
-import { useState } from 'react';
 import ContractService from '../services/contractService';
 import WalletService from '../services/walletService';
 import ConnextService from '../services/connextService';
+import { useEthersProvider, useEthersSigner } from '../ethers/ethersAdapters'
 
 interface HomePageProps {
-  // Add any props specific to the HomePage component
+  walletClient: any;
 }
 
-const HomePage: NextPage<HomePageProps> = () => {
-  const [relayerFee, setRelayerFee] = useState(0);
+const HomePage: NextPage = (pageProps) => {
+  const [relayerFee, setRelayerFee] = useState<string | undefined>(undefined);
 
-  // TODO: get provider from wagmi
-  const contractService = new ContractService(provider);
-  const walletService = new WalletService(contractService, provider);
-  const connextService = new ConnextService({
-    signerAddress,
-    network: "testnet",
-    chains: {
-      // TODO: get chains
-    },
-    walletService
-  });
+  const [contractService, setContractService] = useState<ContractService | undefined>(undefined);
+  const [walletService, setWalletService] = useState<WalletService | undefined>(undefined);
+  const [connextService, setConnextService] = useState<ConnextService | undefined>(undefined);
+  const [signerAddress, setSignerAddress] = useState<string | undefined>(undefined);
 
-  const handleGreet = () => {
-    // TODO: send the xcall
-    // setRelayerFee(connextService.getRelayerFee(...));
+  const provider = useEthersProvider();
+  const signer = useEthersSigner();
+
+  useEffect(() => {
+    const initServices = async () => {
+      if (signer && provider) {
+        const signerAddress = await signer.getAddress();
+        setSignerAddress(signerAddress);
+
+        const contractService = new ContractService(provider);
+        setContractService(contractService);
+
+        const walletService = new WalletService(contractService, provider, signer);
+        setWalletService(walletService);
+
+        if (signerAddress) {
+          const sdkConfig = {
+            signerAddress,
+            network: "testnet" as const,
+            chains: {
+              // TODO: get chains
+            },
+          };
+          const connextServiceInstance = new ConnextService(walletService, contractService, sdkConfig);
+          setConnextService(connextServiceInstance);
+        }
+      }
+    };
+
+    initServices();
+  }, [signer, provider]);
+
+  const handleGreet = (originDomain: string, destinationDomain: string) => {
+    (async () => {
+      if (connextService) {
+        try {
+          const fee = await connextService.estimateRelayerFee(originDomain, destinationDomain);
+          setRelayerFee(fee);
+          console.log(relayerFee);
+        } catch (error) {
+          console.error('Failed to fetch relayer fee', error);
+        }
+      } else {
+        console.log('Connext service not initialized');
+      }
+    })();
   };
 
   return (
@@ -44,7 +81,7 @@ const HomePage: NextPage<HomePageProps> = () => {
           <ConnectButton />
         </div>
         <div className={styles.center}>
-          <button className={styles.button} onClick={() => handleGreet()}>
+          <button className={styles.button} onClick={() => handleGreet("1111", "2222")}>
             Greet With Tokens
           </button>
           {/* {tracker && (
