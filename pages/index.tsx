@@ -93,7 +93,7 @@ const HomePage: NextPage = (pageProps) => {
                 providers: ["https://polygon.llamarpc.com"],
               },
               1634886255: {
-                providers: ["https://arb-mainnet-public.unifra.io"],
+                providers: ["https://arbitrum.meowrpc.com"],
               },
               6450786: {
                 providers: ["https://bsc.rpc.blxrbdn.com"],
@@ -164,7 +164,6 @@ const HomePage: NextPage = (pageProps) => {
           setQuotedAmountOut(quoteAmount as string);
           setRelayerFee(fee);
 
-          // setRelayerFee(fee);
           console.log(`fee: ${fee}`); // alwys going to be undefined due to state management
           console.log(`destinationDomain: ${destinationDomain}, destinationUSDC: ${destinationUSDC}, token1: ${token1}, destinationRpc: ${destinationRpc}`);
           
@@ -191,10 +190,9 @@ const HomePage: NextPage = (pageProps) => {
             },
           };
 
-          const encodedData = utils.defaultAbiCoder.encode(
+          const forwardCallData = utils.defaultAbiCoder.encode(
             ['string'], [greeting]
           );
-          const forwardCallData: string = "0x";
 
           const xCallData = await connextService.getXCallCallDataHelper(
             destinationDomain,
@@ -347,7 +345,7 @@ const HomePage: NextPage = (pageProps) => {
                   "1886350457",
                   selectedToken.address,
                   POLYGON_WETH,
-                  "https://arb-mainnet-public.unifra.io",
+                  "https://arbitrum.meowrpc.com",
                   "https://polygon.llamarpc.com",
                   amountIn
                 )
