@@ -10,9 +10,10 @@ import {
   DestinationCallDataParams,
   Swapper,
   SwapAndXCallParams,
+  EstimateQuoteAmountArgs,
 } from "@connext/chain-abstraction/dist/types";
 import { SdkConfig, create } from "@connext/sdk";
-import { BigNumber } from "ethers";
+import { BigNumber, BigNumberish } from "ethers";
 
 import ContractService from "./walletService";
 import WalletService from "./contractService";
@@ -52,14 +53,6 @@ export default class ConnextService {
     this.walletService = walletService;
     this.sdkConfig = sdkConfig;
   }
-
-  // getRPCURL(chainID: number) {
-  //   const network = find(NETWORKS, { chainId: chainID });
-  //   if (network) {
-  //     return network.rpc[0];
-  //   }
-  //   throw Error('Network not supported');
-  // }
 
   async estimateRelayerFee(originDomain: string, destinationDomain: string) {
     const { sdkBase } = await create(this.sdkConfig);
@@ -159,23 +152,64 @@ export default class ConnextService {
     return domainToChain[domain];
   }
 
-  // async getTransferStatus(transactionHash: string) {
-  //   try {
-  //     const { sdkUtils } = await create(this.sdkConfig);
-  //     const params: { transactionHash: string } = {
-  //       transactionHash,
-  //     };
-  //     const transferStatus = (await sdkUtils.getTransfers(params)) as ConnextTransferStatusResponse;
-  //     if (!transferStatus) {
-  //       throw Error('Failed to fetch transfer status');
-  //     }
-  //     return transferStatus;
-  //   } catch (err) {
-  //     throw Error(err);
-  //   }
-  // }
+  async getEstimateAmountReceivedHelper(_args: EstimateQuoteAmountArgs) {
+    try {
+      const {
+        originDomain,
+        destinationDomain,
+        amountIn,
+        destinationRpc,
+        originRpc,
+        fromAsset,
+        toAsset,
+        signerAddress,
+        originDecimals,
+        destinationDecimals,
+      } = _args;
 
-  // getAllowanceTarget(token: Token): string {
-  //   return DEPLOYED_ADDRESSES.swapandxcall[SUPPORTED_CHAINS_BY_CONNEXT[token.chainId].domainId];
-  // }
+      const estimateAmount = await getEstimateAmountReceived({
+        originDomain,
+        destinationDomain,
+        fromAsset,
+        toAsset,
+        originRpc,
+        destinationRpc,
+        amountIn,
+        signerAddress,
+        originDecimals,
+        destinationDecimals,
+      });
+
+      return estimateAmount;
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  async getPriceImpactHelper(
+    inputToken: string,
+    inputDecimal: number,
+    chainID: number,
+    rpc: string,
+    outputToken: string,
+    outputDecimal: number,
+    amountIn: BigNumberish,
+    signerAddress: string
+  ) {
+    try {
+      const priceImpact = await getPriceImpactForSwaps(
+        inputToken,
+        inputDecimal,
+        chainID,
+        rpc,
+        outputToken,
+        outputDecimal,
+        amountIn,
+        signerAddress
+      );
+      return priceImpact;
+    } catch (err) {
+      console.log(err);
+    }
+  }
 }

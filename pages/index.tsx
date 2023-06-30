@@ -36,10 +36,9 @@ const ChainMapping = [
 const HomePage: NextPage = (pageProps) => {
   const { address } = useAccount();
   const { data } = useWalletClient();
-  const publicClient = usePublicClient();
 
   const [relayerFee, setRelayerFee] = useState<string | undefined>(undefined);
-
+  const [quotedAmountOut, setQuotedAmountOut] = useState<string | null>(null);
   const [contractService, setContractService] = useState<
     ContractService | undefined
   >(undefined);
@@ -145,14 +144,24 @@ const HomePage: NextPage = (pageProps) => {
             originDomain,
             destinationDomain
           );
-          // setRelayerFee(fee);
-          console.log(fee); // alwys going to be undefined due to state management
-          console.log({
-            destinationDomain,
-            destinationUSDC, // destination USDC
-            token1, // destination Token
-            destinationRpc,
-          });
+
+          const quoteAmount =
+            await connextService.getEstimateAmountReceivedHelper({
+              originDomain: +originDomain,
+              destinationDomain: +destinationDomain,
+              amountIn: amountIn.toString(),
+              originRpc,
+              destinationRpc,
+              fromAsset: token0,
+              toAsset: token1,
+              signerAddress: address as string,
+              originDecimals: 18,
+              destinationDecimals: 18,
+            });
+
+          setQuotedAmountOut(quoteAmount as string);
+          setRelayerFee(fee);
+
           // getting uniswap pool fees here.
           const poolFee = await connextService.getPoolFeeForUniV3(
             destinationDomain,
@@ -197,7 +206,7 @@ const HomePage: NextPage = (pageProps) => {
             toAsset: originUSDC, // originUSDC
             amountIn: amountIn.toString(),
             to: "0x8509F7B732554BA0126Cab838279dcC865CB4aC5",
-            relayerFeeInNativeAsset: relayerFee, // 0.001 BNB
+            relayerFeeInNativeAsset: "", // 0.001 BNB
             callData: xCallData,
           };
 
@@ -257,8 +266,8 @@ const HomePage: NextPage = (pageProps) => {
           </div>
 
           <div className={styles.dropdownContent}>
-            {ChainMapping.map((chainMap) => (
-              <a onClick={() => setChainID(chainMap.chainId)}>
+            {ChainMapping.map((chainMap, index) => (
+              <a key={index} onClick={() => setChainID(chainMap.chainId)}>
                 {chainMap.name}
               </a>
             ))}
@@ -290,7 +299,26 @@ const HomePage: NextPage = (pageProps) => {
             />
           </div>
         </div>
-        {/* <TokenList chainId={chainId} /> */}
+
+        {relayerFee && (
+          <div>
+            <p>
+              Relayer Fees: {ethers.utils.formatEther(relayerFee).toString()}{" "}
+              ETH
+            </p>
+          </div>
+        )}
+
+        {quotedAmountOut && (
+          <div>
+            <p>
+              {" "}
+              Estimated Amount out:{" "}
+              {ethers.utils.formatUnits(quotedAmountOut, 18).toString()} WETH
+            </p>
+          </div>
+        )}
+
         <div className={styles.center}>
           {selectedToken ? (
             <button
