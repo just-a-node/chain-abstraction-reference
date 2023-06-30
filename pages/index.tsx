@@ -23,6 +23,10 @@ interface HomePageProps {
   walletClient: any;
 }
 
+const ARBITRUM_PROTOCOL_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const POLYGON_WETH = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
+const POLYGON_ADAPTER_CONTRACT = "0x8509F7B732554BA0126Cab838279dcC865CB4aC5";
+
 const ChainMapping = [
   {
     chainId: 137,
@@ -118,13 +122,12 @@ const HomePage: NextPage = (pageProps) => {
     console.log("selected token:", token);
     setSelectedToken(token);
   };
-  const POLYGON_WETH = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
 
   const handleGreet = (
     originDomain: string,
     destinationDomain: string,
-    token0: string,
-    token1: string,
+    originTransactingAsset: string,
+    destinationDesiredAsset: string,
     originRpc: string,
     destinationRpc: string,
     amountIn: BigNumberish
@@ -146,6 +149,11 @@ const HomePage: NextPage = (pageProps) => {
             originDomain,
             destinationDomain
           );
+          setRelayerFee(fee);
+
+          console.log(`fee: ${fee}`); // alwys going to be undefined due to state management
+
+          // Destination side
 
           const quoteAmount =
             await connextService.getEstimateAmountReceivedHelper({
@@ -154,35 +162,31 @@ const HomePage: NextPage = (pageProps) => {
               amountIn: amountIn.toString(),
               originRpc,
               destinationRpc,
-              fromAsset: token0,
-              toAsset: token1,
+              fromAsset: originTransactingAsset,
+              toAsset: destinationDesiredAsset,
               signerAddress: address as string,
               originDecimals: 18,
               destinationDecimals: 18,
             });
 
           setQuotedAmountOut(quoteAmount as string);
-          setRelayerFee(fee);
 
-          console.log(`fee: ${fee}`); // alwys going to be undefined due to state management
-          console.log(`destinationDomain: ${destinationDomain}, destinationUSDC: ${destinationUSDC}, token1: ${token1}, destinationRpc: ${destinationRpc}`);
+          console.log(`quoteAmount: ${quoteAmount}`);
+          console.log(`destinationDomain: ${destinationDomain}, destinationUSDC: ${destinationUSDC}, originTransactingAsset: ${originTransactingAsset}, destinationDesiredAsset: ${destinationDesiredAsset}, destinationRpc: ${destinationRpc}`);
           
-          // getting uniswap pool fees here.
           const poolFee = await connextService.getPoolFeeForUniV3(
             destinationDomain,
             destinationUSDC, // destination USDC
-            token1, // destination Token
+            destinationDesiredAsset, // destination Token
             destinationRpc
           );
 
-          console.log(poolFee, "poolFee");
-
-          // Destination CallData params
+          console.log(`poolFee: ${poolFee}`);
 
           const params: DestinationCallDataParams = {
             fallback: address as string,
             swapForwarderData: {
-              toAsset: token1,
+              toAsset: destinationDesiredAsset,
               swapData: {
                 amountOutMin: "0",
                 poolFee,
@@ -200,19 +204,16 @@ const HomePage: NextPage = (pageProps) => {
             params
           );
 
-          const PROTOCOL_TOKEN_ADDRESS =
-            "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-
           const swapAndXCallParams: SwapAndXCallParams = {
             originDomain,
             destinationDomain,
             fromAsset:
-              token0 === PROTOCOL_TOKEN_ADDRESS
+              originTransactingAsset === ARBITRUM_PROTOCOL_TOKEN_ADDRESS
                 ? ethers.constants.AddressZero
-                : token0, // BNB
-            toAsset: originUSDC, // originUSDC
+                : originTransactingAsset,
+            toAsset: originUSDC,
             amountIn: amountIn.toString(),
-            to: "0x8509F7B732554BA0126Cab838279dcC865CB4aC5",
+            to: POLYGON_ADAPTER_CONTRACT,
             relayerFeeInNativeAsset: "", // 0.001 BNB
             callData: xCallData,
           };
