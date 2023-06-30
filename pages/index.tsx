@@ -14,7 +14,7 @@ import {
   SwapAndXCallParams,
   Asset,
 } from "@connext/chain-abstraction/dist/types";
-import { BigNumberish, ethers } from "ethers";
+import { BigNumberish, ethers, utils } from "ethers";
 import { domainsToChainNames } from "@connext/sdk/dist/config";
 import { SendTransactionParameters } from "viem";
 import TokenList from "../components/tokenList";
@@ -57,6 +57,8 @@ const HomePage: NextPage = (pageProps) => {
   const [selectedToken, setSelectedToken] = useState<Asset | null>(null);
 
   const [amountIn, setAmountIn] = useState<BigNumberish>("0");
+
+  const [greeting, setGreeting] = useState<string>("");
 
   const provider = useEthersProvider();
   const signer = useEthersSigner();
@@ -113,7 +115,7 @@ const HomePage: NextPage = (pageProps) => {
   }, [signer, provider]);
 
   const handleSelectedToken = (token: Asset) => {
-    console.log(token);
+    console.log("selected token:", token);
     setSelectedToken(token);
   };
   const POLYGON_WETH = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
@@ -135,10 +137,10 @@ const HomePage: NextPage = (pageProps) => {
             connextService.domainToChainID(destinationDomain);
 
           const originUSDC = connextService.getNativeUSDCAddress(originChain);
-          console.log(originDomain, originUSDC);
+          console.log(`originDomain: ${originDomain}, originUSDC: ${originUSDC}`);
           const destinationUSDC =
             connextService.getNativeUSDCAddress(destinationChain);
-          console.log(destinationDomain, destinationUSDC);
+          console.log(`destinationDomain: ${destinationDomain}, destinationUSDC: ${destinationUSDC}`);
 
           const fee = await connextService.estimateRelayerFee(
             originDomain,
@@ -162,6 +164,10 @@ const HomePage: NextPage = (pageProps) => {
           setQuotedAmountOut(quoteAmount as string);
           setRelayerFee(fee);
 
+          // setRelayerFee(fee);
+          console.log(`fee: ${fee}`); // alwys going to be undefined due to state management
+          console.log(`destinationDomain: ${destinationDomain}, destinationUSDC: ${destinationUSDC}, token1: ${token1}, destinationRpc: ${destinationRpc}`);
+          
           // getting uniswap pool fees here.
           const poolFee = await connextService.getPoolFeeForUniV3(
             destinationDomain,
@@ -185,6 +191,9 @@ const HomePage: NextPage = (pageProps) => {
             },
           };
 
+          const encodedData = utils.defaultAbiCoder.encode(
+            ['string'], [greeting]
+          );
           const forwardCallData: string = "0x";
 
           const xCallData = await connextService.getXCallCallDataHelper(
@@ -234,7 +243,7 @@ const HomePage: NextPage = (pageProps) => {
     }
   });
 
-  console.log(amountIn);
+  console.log(`amountIn:`, amountIn);
 
   return (
     <div className={styles.container}>
@@ -296,6 +305,15 @@ const HomePage: NextPage = (pageProps) => {
                 setAmountIn(e.target.value);
               }}
               placeholder="Amount"
+            />
+          </div>
+          <div style={{ marginLeft: "10px" }}>
+            <input
+              className={styles.inputGreeting}
+              onChange={(e) => {
+                setGreeting(e.target.value);
+              }}
+              placeholder="Greeting"
             />
           </div>
         </div>

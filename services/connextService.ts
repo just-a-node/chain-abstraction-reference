@@ -56,7 +56,7 @@ export default class ConnextService {
 
   async estimateRelayerFee(originDomain: string, destinationDomain: string) {
     const { sdkBase } = await create(this.sdkConfig);
-    console.log("In the function");
+    console.log("In the estimateRelayerfee function");
     const relayerFees = await sdkBase.estimateRelayerFee({
       originDomain,
       destinationDomain,
