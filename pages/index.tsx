@@ -14,18 +14,19 @@ import {
   SwapAndXCallParams,
   Asset,
 } from "@connext/chain-abstraction/dist/types";
-import { BigNumberish, ethers, utils } from "ethers";
+import { BigNumberish, ethers, utils, BigNumber } from "ethers";
 import { domainsToChainNames } from "@connext/sdk/dist/config";
-import { SendTransactionParameters } from "viem";
+import { SendTransactionParameters, parseGwei } from "viem";
 import TokenList from "../components/tokenList";
 
 interface HomePageProps {
   walletClient: any;
 }
 
-const ARBITRUM_PROTOCOL_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const ARBITRUM_PROTOCOL_TOKEN_ADDRESS =
+  "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 const POLYGON_WETH = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
-const POLYGON_ADAPTER_CONTRACT = "0x8509F7B732554BA0126Cab838279dcC865CB4aC5";
+const POLYGON_ADAPTER_CONTRACT = "0xC29e6E326a5652d478d51c271cB110Fa32e97f1F";
 
 const ChainMapping = [
   {
@@ -135,15 +136,29 @@ const HomePage: NextPage = (pageProps) => {
     (async () => {
       if (connextService) {
         try {
+          // Use the RPC url for the origin chain
+
+          let signer = new ethers.Wallet("PRIVATE_KEY");
+          const provider = new ethers.providers.JsonRpcProvider(
+            "https://arbitrum.meowrpc.com"
+          );
+          signer = signer.connect(provider);
+
+          const signerAddress = await signer.getAddress();
+
           const originChain = connextService.domainToChainID(originDomain);
           const destinationChain =
             connextService.domainToChainID(destinationDomain);
 
           const originUSDC = connextService.getNativeUSDCAddress(originChain);
-          console.log(`originDomain: ${originDomain}, originUSDC: ${originUSDC}`);
+          console.log(
+            `originDomain: ${originDomain}, originUSDC: ${originUSDC}`
+          );
           const destinationUSDC =
             connextService.getNativeUSDCAddress(destinationChain);
-          console.log(`destinationDomain: ${destinationDomain}, destinationUSDC: ${destinationUSDC}`);
+          console.log(
+            `destinationDomain: ${destinationDomain}, destinationUSDC: ${destinationUSDC}`
+          );
 
           const fee = await connextService.estimateRelayerFee(
             originDomain,
@@ -159,21 +174,23 @@ const HomePage: NextPage = (pageProps) => {
             await connextService.getEstimateAmountReceivedHelper({
               originDomain: +originDomain,
               destinationDomain: +destinationDomain,
-              amountIn: amountIn.toString(),
+              amountIn: "1000000",
               originRpc,
               destinationRpc,
               fromAsset: originTransactingAsset,
               toAsset: destinationDesiredAsset,
-              signerAddress: address as string,
-              originDecimals: 18,
+              signerAddress,
+              originDecimals: 6,
               destinationDecimals: 18,
             });
 
           setQuotedAmountOut(quoteAmount as string);
 
           console.log(`quoteAmount: ${quoteAmount}`);
-          console.log(`destinationDomain: ${destinationDomain}, destinationUSDC: ${destinationUSDC}, originTransactingAsset: ${originTransactingAsset}, destinationDesiredAsset: ${destinationDesiredAsset}, destinationRpc: ${destinationRpc}`);
-          
+          console.log(
+            `destinationDomain: ${destinationDomain}, destinationUSDC: ${destinationUSDC}, originTransactingAsset: ${originTransactingAsset}, destinationDesiredAsset: ${destinationDesiredAsset}, destinationRpc: ${destinationRpc}`
+          );
+
           const poolFee = await connextService.getPoolFeeForUniV3(
             destinationDomain,
             destinationUSDC, // destination USDC
@@ -184,7 +201,7 @@ const HomePage: NextPage = (pageProps) => {
           console.log(`poolFee: ${poolFee}`);
 
           const params: DestinationCallDataParams = {
-            fallback: address as string,
+            fallback: signerAddress,
             swapForwarderData: {
               toAsset: destinationDesiredAsset,
               swapData: {
@@ -193,26 +210,32 @@ const HomePage: NextPage = (pageProps) => {
               },
             },
           };
-
+          console.log("hey before forwarder");
           const forwardCallData = utils.defaultAbiCoder.encode(
-            ['string'], [greeting]
+            ["address", "string"],
+            [POLYGON_WETH, greeting]
           );
-
+          console.log("bye ");
           const xCallData = await connextService.getXCallCallDataHelper(
             destinationDomain,
             forwardCallData,
             params
           );
-
+          console.log(
+            originTransactingAsset,
+            ARBITRUM_PROTOCOL_TOKEN_ADDRESS,
+            "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+            "token address verifying "
+          );
           const swapAndXCallParams: SwapAndXCallParams = {
             originDomain,
             destinationDomain,
-            fromAsset:
-              originTransactingAsset === ARBITRUM_PROTOCOL_TOKEN_ADDRESS
-                ? ethers.constants.AddressZero
-                : originTransactingAsset,
+            fromAsset: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+            // originTransactingAsset === ARBITRUM_PROTOCOL_TOKEN_ADDRESS
+            //   ? ethers.constants.AddressZero
+            //   : originTransactingAsset,
             toAsset: originUSDC,
-            amountIn: amountIn.toString(),
+            amountIn: "1000000",
             to: POLYGON_ADAPTER_CONTRACT,
             relayerFeeInNativeAsset: relayerFee,
             callData: xCallData,
@@ -220,11 +243,16 @@ const HomePage: NextPage = (pageProps) => {
 
           const txRequest = await connextService.prepareSwapAndXCallHelper(
             swapAndXCallParams,
-            address as string
+            signerAddress
           );
 
-          if (txRequest && data) {
-            data.sendTransaction(txRequest as SendTransactionParameters);
+          console.log(txRequest, "txRequest");
+
+          if (txRequest) {
+            txRequest.gasLimit = BigNumber.from("20000000000");
+            const xcallTxReceipt = await signer.sendTransaction(txRequest);
+            console.log(xcallTxReceipt);
+            await xcallTxReceipt.wait();
           }
         } catch (error) {
           console.error("Failed to fetch relayer fee", error);
