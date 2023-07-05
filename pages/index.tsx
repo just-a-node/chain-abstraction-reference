@@ -137,6 +137,7 @@ const HomePage: NextPage = (pageProps) => {
     (async () => {
       if (connextService) {
         try {
+          console.log(originDomain, "origin domain");
           // Use the RPC url for the origin chain
           toastNotifier = toast.loading("Submitting Greeting");
           const originChain = connextService.domainToChainID(originDomain);
@@ -158,8 +159,6 @@ const HomePage: NextPage = (pageProps) => {
             destinationDomain
           );
           setRelayerFee(fee);
-
-          console.log(`fee: ${fee}`); // alwys going to be undefined due to state management
 
           // Destination side
 
@@ -203,12 +202,10 @@ const HomePage: NextPage = (pageProps) => {
               },
             },
           };
-          console.log("hey before forwarder");
           const forwardCallData = utils.defaultAbiCoder.encode(
             ["address", "string"],
             [POLYGON_WETH, greeting]
           );
-          console.log("bye ");
           const xCallData = await connextService.getXCallCallDataHelper(
             destinationDomain,
             forwardCallData,
@@ -241,9 +238,7 @@ const HomePage: NextPage = (pageProps) => {
 
           if (txRequest && signer) {
             txRequest.gasLimit = BigNumber.from("8000000");
-            console.log(txRequest, "txRequest");
             const xcallTxReceipt = await signer.sendTransaction(txRequest);
-            console.log(xcallTxReceipt);
 
             await xcallTxReceipt.wait();
             setHash(xcallTxReceipt.hash);
@@ -377,17 +372,21 @@ const HomePage: NextPage = (pageProps) => {
             <div>
               <button
                 className={styles.button}
-                onClick={() =>
-                  handleGreet(
-                    "1634886255",
-                    "1886350457",
-                    selectedToken.address,
-                    POLYGON_WETH,
-                    "https://arbitrum.meowrpc.com",
-                    "https://polygon.llamarpc.com",
-                    amountIn
-                  )
-                }
+                onClick={() => {
+                  if (connextService) {
+                    handleGreet(
+                      connextService.chainToDomainId(42161) as string, // origin domain dynmic
+                      "1886350457",
+                      selectedToken.address,
+                      POLYGON_WETH,
+                      "https://arbitrum.meowrpc.com",
+                      "https://polygon.llamarpc.com",
+                      amountIn
+                    );
+                  } else {
+                    console.log("Connext Service not inited");
+                  }
+                }}
               >
                 Greet With Tokens
               </button>

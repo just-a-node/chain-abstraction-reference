@@ -152,6 +152,16 @@ export default class ConnextService {
     return domainToChain[domain];
   }
 
+  chainToDomainId(chainId: number) {
+    const domainToChain: DomainID = {
+      10: "1869640809",
+      137: "1886350457",
+      42161: "1634886255",
+      56: "6450786",
+    };
+    return domainToChain[chainId];
+  }
+
   async getEstimateAmountReceivedHelper(_args: EstimateQuoteAmountArgs) {
     try {
       const {
