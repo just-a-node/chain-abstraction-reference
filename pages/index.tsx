@@ -5,23 +5,23 @@ import Head from 'next/head';
 import styles from '../styles/Home.module.css';
 import ContractService from '../services/contractService';
 import WalletService from '../services/walletService';
-import ConnextService from '../services/connextService';
-import { useEthersProvider, useEthersSigner } from '../ethers/ethersAdapters'
+import ConnextService from "../services/connextService";
 import { SdkConfig } from "@connext/sdk";
-import { useAccount, useWalletClient, usePublicClient } from "wagmi";
+import { useAccount, useSigner, useProvider } from "wagmi";
 import {
   DestinationCallDataParams,
   SwapAndXCallParams,
   Asset,
 } from "@connext/chain-abstraction/dist/types";
-import { BigNumberish, ethers, utils, BigNumber } from "ethers";
-import { domainsToChainNames } from "@connext/sdk/dist/config";
-import { SendTransactionParameters, parseGwei } from "viem";
-import TokenList from "../components/tokenList";
 
-interface HomePageProps {
-  walletClient: any;
-}
+import useWindowSize from "react-use/lib/useWindowSize";
+import Confetti from "react-confetti";
+
+import { Id, ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+import { BigNumberish, ethers, utils, BigNumber } from "ethers";
+import TokenList from "../components/tokenList";
 
 const ARBITRUM_PROTOCOL_TOKEN_ADDRESS =
   "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
@@ -40,7 +40,11 @@ const ChainMapping = [
 
 const HomePage: NextPage = (pageProps) => {
   const { address } = useAccount();
-  const { data } = useWalletClient();
+  const { data: signer } = useSigner();
+
+  const provider = useProvider();
+
+  const { width, height } = useWindowSize();
 
   const [relayerFee, setRelayerFee] = useState<string | undefined>(undefined);
   const [quotedAmountOut, setQuotedAmountOut] = useState<string | null>(null);
@@ -53,9 +57,6 @@ const HomePage: NextPage = (pageProps) => {
   const [connextService, setConnextService] = useState<
     ConnextService | undefined
   >(undefined);
-  const [signerAddress, setSignerAddress] = useState<string | undefined>(
-    undefined
-  );
 
   const [chainId, setChainID] = useState<number>(0);
 
@@ -65,16 +66,14 @@ const HomePage: NextPage = (pageProps) => {
 
   const [greeting, setGreeting] = useState<string>("");
 
-  const provider = useEthersProvider();
-  const signer = useEthersSigner();
+  const [hash, setHash] = useState<string | null>(null);
 
+  const [success, setSuccess] = useState<boolean>(false);
   useEffect(() => {
     const initServices = async () => {
       if (signer && provider) {
         const chain = (await provider.getNetwork()).chainId;
         setChainID(chain);
-        const signerAddress = await signer.getAddress();
-        setSignerAddress(signerAddress);
 
         const contractService = new ContractService(provider);
         setContractService(contractService);
@@ -86,9 +85,9 @@ const HomePage: NextPage = (pageProps) => {
         );
         setWalletService(walletService);
 
-        if (signerAddress) {
+        if (address) {
           const sdkConfig: SdkConfig = {
-            signerAddress,
+            signerAddress: address,
             network: "mainnet" as const,
             chains: {
               1869640809: {
@@ -98,7 +97,7 @@ const HomePage: NextPage = (pageProps) => {
                 providers: ["https://polygon.llamarpc.com"],
               },
               1634886255: {
-                providers: ["https://arbitrum.meowrpc.com"],
+                providers: ["https://arb-mainnet-public.unifra.io"],
               },
               6450786: {
                 providers: ["https://bsc.rpc.blxrbdn.com"],
@@ -119,6 +118,8 @@ const HomePage: NextPage = (pageProps) => {
     initServices();
   }, [signer, provider]);
 
+  let toastNotifier: Id;
+
   const handleSelectedToken = (token: Asset) => {
     console.log("selected token:", token);
     setSelectedToken(token);
@@ -137,15 +138,7 @@ const HomePage: NextPage = (pageProps) => {
       if (connextService) {
         try {
           // Use the RPC url for the origin chain
-
-          let signer = new ethers.Wallet("PRIVATE_KEY");
-          const provider = new ethers.providers.JsonRpcProvider(
-            "https://arbitrum.meowrpc.com"
-          );
-          signer = signer.connect(provider);
-
-          const signerAddress = await signer.getAddress();
-
+          toastNotifier = toast.loading("Submitting Greeting");
           const originChain = connextService.domainToChainID(originDomain);
           const destinationChain =
             connextService.domainToChainID(destinationDomain);
@@ -174,12 +167,12 @@ const HomePage: NextPage = (pageProps) => {
             await connextService.getEstimateAmountReceivedHelper({
               originDomain: +originDomain,
               destinationDomain: +destinationDomain,
-              amountIn: "1000000",
+              amountIn: amountIn.toString(),
               originRpc,
               destinationRpc,
               fromAsset: originTransactingAsset,
               toAsset: destinationDesiredAsset,
-              signerAddress,
+              signerAddress: address as `0x${string}`,
               originDecimals: 6,
               destinationDecimals: 18,
             });
@@ -201,7 +194,7 @@ const HomePage: NextPage = (pageProps) => {
           console.log(`poolFee: ${poolFee}`);
 
           const params: DestinationCallDataParams = {
-            fallback: signerAddress,
+            fallback: address as `0x${string}`,
             swapForwarderData: {
               toAsset: destinationDesiredAsset,
               swapData: {
@@ -230,12 +223,12 @@ const HomePage: NextPage = (pageProps) => {
           const swapAndXCallParams: SwapAndXCallParams = {
             originDomain,
             destinationDomain,
-            fromAsset: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
-            // originTransactingAsset === ARBITRUM_PROTOCOL_TOKEN_ADDRESS
-            //   ? ethers.constants.AddressZero
-            //   : originTransactingAsset,
+            fromAsset:
+              originTransactingAsset === ARBITRUM_PROTOCOL_TOKEN_ADDRESS
+                ? ethers.constants.AddressZero
+                : originTransactingAsset,
             toAsset: originUSDC,
-            amountIn: "1000000",
+            amountIn: amountIn.toString(),
             to: POLYGON_ADAPTER_CONTRACT,
             relayerFeeInNativeAsset: relayerFee,
             callData: xCallData,
@@ -243,21 +236,34 @@ const HomePage: NextPage = (pageProps) => {
 
           const txRequest = await connextService.prepareSwapAndXCallHelper(
             swapAndXCallParams,
-            signerAddress
+            address as `0x${string}`
           );
 
-          console.log(txRequest, "txRequest");
-
-          if (txRequest) {
-            txRequest.gasLimit = BigNumber.from("20000000000");
+          if (txRequest && signer) {
+            txRequest.gasLimit = BigNumber.from("8000000");
+            console.log(txRequest, "txRequest");
             const xcallTxReceipt = await signer.sendTransaction(txRequest);
             console.log(xcallTxReceipt);
+
             await xcallTxReceipt.wait();
+            setHash(xcallTxReceipt.hash);
+            setSuccess(true);
+            toast.update(toastNotifier, {
+              render: "Greeting Submitted",
+              type: "success",
+              isLoading: false,
+            });
           }
         } catch (error) {
+          toast.update(toastNotifier, {
+            render: "Failed to submit greeting",
+            type: "error",
+            isLoading: false,
+          });
           console.error("Failed to fetch relayer fee", error);
         }
       } else {
+        toastNotifier = toast.error("Failed to submit greeting");
         console.log("Connext service not initialized");
       }
     })();
@@ -270,8 +276,6 @@ const HomePage: NextPage = (pageProps) => {
     }
   });
 
-  console.log(`amountIn:`, amountIn);
-
   return (
     <div className={styles.container}>
       <Head>
@@ -279,6 +283,10 @@ const HomePage: NextPage = (pageProps) => {
         <meta content="Generated by @connext/sdk" name="description" />
         <link href="/favicon.ico" rel="icon" />
       </Head>
+      {success && <Confetti width={width} height={height} />}
+
+      <ToastContainer />
+      {toastNotifier}
       <main className={styles.main}>
         <div className={styles.flexDisplay}>
           <h2>Connext Chain Abstraction Reference</h2>
@@ -366,22 +374,32 @@ const HomePage: NextPage = (pageProps) => {
 
         <div className={styles.center}>
           {selectedToken ? (
-            <button
-              className={styles.button}
-              onClick={() =>
-                handleGreet(
-                  "1634886255",
-                  "1886350457",
-                  selectedToken.address,
-                  POLYGON_WETH,
-                  "https://arbitrum.meowrpc.com",
-                  "https://polygon.llamarpc.com",
-                  amountIn
-                )
-              }
-            >
-              Greet With Tokens
-            </button>
+            <div>
+              <button
+                className={styles.button}
+                onClick={() =>
+                  handleGreet(
+                    "1634886255",
+                    "1886350457",
+                    selectedToken.address,
+                    POLYGON_WETH,
+                    "https://arbitrum.meowrpc.com",
+                    "https://polygon.llamarpc.com",
+                    amountIn
+                  )
+                }
+              >
+                Greet With Tokens
+              </button>
+              {hash && (
+                <p>
+                  You can check you transaction on connextscan by clicking{" "}
+                  <a href={`https://connextscan.io/tx/${hash}?src=search`}>
+                    here.
+                  </a>
+                </p>
+              )}
+            </div>
           ) : (
             <p>No token selected</p>
           )}
