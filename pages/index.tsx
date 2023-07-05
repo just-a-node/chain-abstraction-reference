@@ -118,7 +118,7 @@ const HomePage: NextPage = (pageProps) => {
     initServices();
   }, [signer, provider]);
 
-  let toastNotifier: Id;
+  let toastNotifier: Id | null = null;
 
   const handleSelectedToken = (token: Asset) => {
     console.log("selected token:", token);
@@ -255,7 +255,7 @@ const HomePage: NextPage = (pageProps) => {
             });
           }
         } catch (error) {
-          toast.update(toastNotifier, {
+          toast.update(toastNotifier as Id, {
             render: "Failed to submit greeting",
             type: "error",
             isLoading: false,
