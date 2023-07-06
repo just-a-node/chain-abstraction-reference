@@ -246,3 +246,7 @@
   padding: 10px 10px;
   text-decoration: solid;
 }
+.description {
+  font-size: 12px;
+  font-style: italic;
+}

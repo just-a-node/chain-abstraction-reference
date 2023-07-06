@@ -23,6 +23,8 @@ import "react-toastify/dist/ReactToastify.css";
 import { BigNumberish, ethers, utils, BigNumber } from "ethers";
 import TokenList from "../components/tokenList";
 
+import GreeterTargetABI from "../abis/GreeterTargetABI.json";
+
 const ARBITRUM_PROTOCOL_TOKEN_ADDRESS =
   "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 const POLYGON_WETH = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
@@ -69,6 +71,9 @@ const HomePage: NextPage = (pageProps) => {
   const [hash, setHash] = useState<string | null>(null);
 
   const [success, setSuccess] = useState<boolean>(false);
+
+  const [greetingList, setGreetingList] = useState<any[]>([]);
+
   useEffect(() => {
     const initServices = async () => {
       if (signer && provider) {
@@ -116,6 +121,7 @@ const HomePage: NextPage = (pageProps) => {
     };
 
     initServices();
+    fetchGreetingStatusHistory();
   }, [signer, provider]);
 
   let toastNotifier: Id | null = null;
@@ -153,14 +159,32 @@ const HomePage: NextPage = (pageProps) => {
           console.log(
             `destinationDomain: ${destinationDomain}, destinationUSDC: ${destinationUSDC}`
           );
+          toast.update(toastNotifier, {
+            render: "Calculating Relayer Fees",
+            type: "success",
+            isLoading: true,
+          });
 
           const fee = await connextService.estimateRelayerFee(
             originDomain,
             destinationDomain
           );
+
+          toast.update(toastNotifier, {
+            render: "Relayer Fees calculation done",
+            type: "success",
+            isLoading: false,
+          });
+
           setRelayerFee(fee);
 
           // Destination side
+
+          toast.update(toastNotifier, {
+            render: "Calculating Estimate Amount Out",
+            type: "success",
+            isLoading: true,
+          });
 
           const quoteAmount =
             await connextService.getEstimateAmountReceivedHelper({
@@ -176,6 +200,11 @@ const HomePage: NextPage = (pageProps) => {
               destinationDecimals: 18,
             });
 
+          toast.update(toastNotifier, {
+            render: "Estimate Amount Out Calculation Done",
+            type: "success",
+            isLoading: false,
+          });
           setQuotedAmountOut(quoteAmount as string);
 
           console.log(`quoteAmount: ${quoteAmount}`);
@@ -183,12 +212,24 @@ const HomePage: NextPage = (pageProps) => {
             `destinationDomain: ${destinationDomain}, destinationUSDC: ${destinationUSDC}, originTransactingAsset: ${originTransactingAsset}, destinationDesiredAsset: ${destinationDesiredAsset}, destinationRpc: ${destinationRpc}`
           );
 
+          toast.update(toastNotifier, {
+            render: "Calculating Pool Fees",
+            type: "success",
+            isLoading: true,
+          });
+
           const poolFee = await connextService.getPoolFeeForUniV3(
             destinationDomain,
             destinationUSDC, // destination USDC
             destinationDesiredAsset, // destination Token
             destinationRpc
           );
+
+          toast.update(toastNotifier, {
+            render: "Pool Fees Calculation Done",
+            type: "success",
+            isLoading: false,
+          });
 
           console.log(`poolFee: ${poolFee}`);
 
@@ -202,6 +243,12 @@ const HomePage: NextPage = (pageProps) => {
               },
             },
           };
+
+          toast.update(toastNotifier, {
+            render: "Preparing Transaction",
+            type: "info",
+            isLoading: true,
+          });
           const forwardCallData = utils.defaultAbiCoder.encode(
             ["address", "string"],
             [POLYGON_WETH, greeting]
@@ -248,6 +295,9 @@ const HomePage: NextPage = (pageProps) => {
               type: "success",
               isLoading: false,
             });
+            const greetings = [...greetingList];
+            greetings.push(greeting);
+            setGreetingList(greetings);
           }
         } catch (error) {
           toast.update(toastNotifier as Id, {
@@ -271,6 +321,48 @@ const HomePage: NextPage = (pageProps) => {
     }
   });
 
+  // Fetching of greeting variable
+
+  const fetchGreetingStatusHistory = async () => {
+    try {
+      const providers = new ethers.providers.JsonRpcProvider(
+        "https://polygon-mainnet.g.alchemy.com/v2/MBVvF6TziZyIXX7_WWVl16lEL6DmIzN-"
+      ); // need polygon RPC provider for querying polyscan
+      const initBlockNumber = 44626788;
+      const latestBlockNumber = "latest";
+      const targetContract = new ethers.Contract(
+        POLYGON_ADAPTER_CONTRACT,
+        GreeterTargetABI,
+        providers
+      );
+
+      console.log(latestBlockNumber);
+
+      const filters = targetContract.filters.GreetingUpdated();
+      console.log(filters);
+      const events = await targetContract.queryFilter(
+        filters,
+        initBlockNumber,
+        latestBlockNumber
+      );
+
+      const greetings: any[] = [];
+
+      if (events) {
+        events.forEach((event) => {
+          const { args } = event;
+          if (args) {
+            greetings.push(args._greeting);
+          }
+        });
+      }
+
+      setGreetingList(greetings);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   return (
     <div className={styles.container}>
       <Head>
@@ -280,7 +372,7 @@ const HomePage: NextPage = (pageProps) => {
       </Head>
       {success && <Confetti width={width} height={height} />}
 
-      <ToastContainer />
+      <ToastContainer position="top-center" />
       {toastNotifier}
       <main className={styles.main}>
         <div className={styles.flexDisplay}>
@@ -312,39 +404,61 @@ const HomePage: NextPage = (pageProps) => {
             ))}
           </div>
         </div>
-
-        <div
-          style={{
-            display: "flex",
-            width: "500px",
-            marginTop: "100px",
-            // justifyContent: "space-around",
-            // alignItems: "center",
-          }}
-        >
-          <TokenList
-            chainId={chainId}
-            setSelectedToken={handleSelectedToken}
-            selectedToken={selectedToken}
-          />
-
-          <div style={{ marginLeft: "10px" }}>
-            <input
-              className={styles.inputAmount}
-              onChange={(e) => {
-                setAmountIn(e.target.value);
-              }}
-              placeholder="Amount"
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div
+            style={{
+              display: "flex",
+              width: "500px",
+              marginTop: "100px",
+              // justifyContent: "space-around",
+              // alignItems: "center",
+            }}
+          >
+            <TokenList
+              chainId={chainId}
+              setSelectedToken={handleSelectedToken}
+              selectedToken={selectedToken}
             />
+
+            <div style={{ marginLeft: "10px" }}>
+              <input
+                className={styles.inputAmount}
+                onChange={(e) => {
+                  setAmountIn(e.target.value);
+                }}
+                placeholder="Amount"
+              />
+            </div>
+            <div style={{ marginLeft: "10px" }}>
+              <input
+                className={styles.inputGreeting}
+                onChange={(e) => {
+                  setGreeting(e.target.value);
+                }}
+                placeholder="Enter your Greeting"
+              />
+            </div>
           </div>
-          <div style={{ marginLeft: "10px" }}>
-            <input
-              className={styles.inputGreeting}
-              onChange={(e) => {
-                setGreeting(e.target.value);
-              }}
-              placeholder="Greeting"
-            />
+          <div
+            style={{
+              width: "500px",
+              display: "flex",
+              alignItems: "center",
+              flexFlow: "column",
+            }}
+          >
+            <h2 style={{ alignSelf: "flex-start" }}>Greetings: </h2>
+            {greetingList && greetingList.length ? (
+              <div style={{ width: "100%" }}>
+                <ul>
+                  {greetingList.map((greeting) => {
+                    return <li>{greeting}</li>;
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <p>No Greetings found</p>
+            )}
           </div>
         </div>
 
@@ -375,7 +489,7 @@ const HomePage: NextPage = (pageProps) => {
                 onClick={() => {
                   if (connextService) {
                     handleGreet(
-                      connextService.chainToDomainId(42161) as string, // origin domain dynmic
+                      connextService.chainToDomainId(chainId) as string, // origin domain dynmic
                       "1886350457",
                       selectedToken.address,
                       POLYGON_WETH,
@@ -402,6 +516,10 @@ const HomePage: NextPage = (pageProps) => {
           ) : (
             <p>No token selected</p>
           )}
+          <p className={styles.description}>
+            Pay to update a greeter contract on destination using any asset from
+            any chain
+          </p>
 
           {/* {tracker && (
             <p>
