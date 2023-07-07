@@ -132,12 +132,12 @@
     secp256k1 "4.0.3"
     sinon-chai "3.7.0"
 
-"@connext/nxtp-utils@2.0.1":
-  version "2.0.1"
-  resolved "https://registry.yarnpkg.com/@connext/nxtp-utils/-/nxtp-utils-2.0.1.tgz#03b7e08aea784f6e269d6538fa3884f28aed0022"
-  integrity sha512-pBIh4674tezNHu7FT/j5AvtDbAECxkERdUg63EG//gcY3SrG5c29UPQhf6g7porqTuFdqYPxVloQ+VgWMaegeA==
+"@connext/nxtp-utils@2.0.2-alpha.8":
+  version "2.0.2-alpha.8"
+  resolved "https://registry.yarnpkg.com/@connext/nxtp-utils/-/nxtp-utils-2.0.2-alpha.8.tgz#8c37ddd05a46d70a22fbc204989e15cb40e86185"
+  integrity sha512-NBzS6bmNgFBnJMhi/LiZ1AIxiYZuN8JUMVaKH+fnclOOAaXSZ43ameOzWI4kwVp7GIEMoBUVKQUHueMaLogV8w==
   dependencies:
-    "@maticnetwork/maticjs" "3.6.0-beta.6"
+    "@maticnetwork/maticjs" "3.6.0-beta.11"
     "@maticnetwork/maticjs-web3" "1.0.4"
     "@sinclair/typebox" "0.25.21"
     ajv "8.12.0"
@@ -188,13 +188,13 @@
     memoizee "0.4.15"
     typedoc "0.23.25"
 
-"@connext/sdk@^2.0.2":
-  version "2.0.2"
-  resolved "https://registry.yarnpkg.com/@connext/sdk/-/sdk-2.0.2.tgz#67158e48c720a979f0fc5b26ff67c66342268b57"
-  integrity sha512-cHbdSpZ3qn1Mveu//mnLC7MN5o77k/ITuv/ibzQUmmExRM8bVu+CZDgv0jBaZ3FJzMIkgyJd8PXPM+NtBU6fVg==
+"@connext/sdk@2.0.3-alpha.11":
+  version "2.0.3-alpha.11"
+  resolved "https://registry.yarnpkg.com/@connext/sdk/-/sdk-2.0.3-alpha.11.tgz#df11b59f235cf70d972175a488797b005f3d2649"
+  integrity sha512-hXkPblwgfx8ukcF4mkz2qtjNmZbHOe+EZyiin4R8WeiM63+ZaTvH37BJSerG5Jh/CNx4FwLTqHX95bO+ARQ+Tw==
   dependencies:
     "@connext/nxtp-txservice" "2.0.0-alpha.1"
-    "@connext/nxtp-utils" "2.0.1"
+    "@connext/nxtp-utils" "2.0.2-alpha.8"
     "@sinclair/typebox" "0.25.21"
     ethers "5.7.2"
     isomorphic-fetch "^3.0.0"
